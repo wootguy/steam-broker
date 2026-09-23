@@ -2,7 +2,6 @@ use std::{
     fs,
     io::{ErrorKind, Read, Write},
     net::{SocketAddrV4, TcpListener, TcpStream},
-    os::unix::fs::DirBuilderExt,
     path::{Path, PathBuf},
     str,
     thread::sleep,
@@ -403,9 +402,19 @@ struct ScratchDir(PathBuf);
 
 impl ScratchDir {
     fn new() -> Result<Self, BrokerError> {
-        let path = PathBuf::from(format!("/tmp/steam-broker-{:08x}", fastrand::u32(..)));
-        fs::DirBuilder::new()
-            .mode(0o700)
+        let path = std::env::temp_dir()
+            .join(format!("steam-broker-{:08x}", fastrand::u32(..)));
+        
+		#[cfg_attr(windows, allow(unused_mut))]
+        let mut builder = fs::DirBuilder::new();
+
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::DirBuilderExt;
+            builder.mode(0o700);
+        }
+
+        builder
             .create(&path)
             .map_err(BrokerError::Io)?;
         Ok(Self(path))
